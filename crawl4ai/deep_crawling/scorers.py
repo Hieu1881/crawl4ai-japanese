@@ -517,3 +517,67 @@ class DomainAuthorityScorer(URLScorer):
             
         # Regular path: check all domains
         return self._domain_weights.get(domain, self._default_weight)
+    
+class URLPathHeuristicScorer(URLScorer):
+    """
+    Scores URLs based on structural likelihood of being a content page.
+    Language-agnostic and extremely fast.
+    """
+
+    __slots__ = ("_weight",)
+
+    BAD_EXTENSIONS = (
+        ".jpg", ".jpeg", ".png", ".gif", ".svg",
+        ".css", ".js", ".woff", ".woff2",
+        ".pdf", ".zip", ".rar", ".mp4", ".avi"
+    )
+
+    BAD_KEYWORDS = (
+        "login", "logout", "signup", "register",
+        "cart", "checkout", "search", "tag",
+        "category", "feed", "rss", "wp-admin"
+    )
+
+    DATE_PATTERN = re.compile(r"/20\d{2}/\d{1,2}/\d{1,2}/")
+    ID_PATTERN = re.compile(r"/\d{4,}")
+
+    def __init__(self, weight: float = 1.0):
+        super().__init__(weight=weight)
+
+    @lru_cache(maxsize=10000)
+    def _calculate_score(self, url: str) -> float:
+        url = url.lower()
+
+        # Hard reject
+        if url.endswith(self.BAD_EXTENSIONS):
+            return 0.0
+
+        if any(bad in url for bad in self.BAD_KEYWORDS):
+            return 0.0
+
+        score = 0.0
+
+        # Path depth heuristic
+        path = url.split("?", 1)[0]
+        depth = path.count("/") - 2  # exclude scheme + domain
+
+        if 2 <= depth <= 4:
+            score += 0.4
+        elif depth == 1:
+            score += 0.2
+        elif depth > 6:
+            score -= 0.2
+
+        # Date-based articles
+        if self.DATE_PATTERN.search(path):
+            score += 0.4
+
+        # Numeric article IDs
+        if self.ID_PATTERN.search(path):
+            score += 0.3
+
+        # Query penalty
+        if "?" in url:
+            score -= 0.2
+
+        return max(0.0, min(score, 1.0)) * self._weight
