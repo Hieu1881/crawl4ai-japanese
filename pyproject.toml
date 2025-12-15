@@ -59,6 +59,9 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+japanese = [
+    "janome>=0.5.0"
+]
 pdf = ["pypdf"]  
 torch = ["torch", "nltk", "scikit-learn"]
 transformer = ["transformers", "tokenizers", "sentence-transformers"]
