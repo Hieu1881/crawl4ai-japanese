@@ -92,7 +92,7 @@ packages = {find = {where = ["."], include = ["crawl4ai*"]}}
 crawl4ai = ["js_snippet/*.js"]
 
 [tool.setuptools.dynamic]
-version = {attr = "crawl4ai.__version__.__version__"}
+version = {attr = "0.7.7+ja"}
 
 [tool.uv.sources]
 crawl4ai = { workspace = true }
