@@ -518,13 +518,8 @@ class DomainAuthorityScorer(URLScorer):
         # Regular path: check all domains
         return self._domain_weights.get(domain, self._default_weight)
     
-class URLPathHeuristicScorer(URLScorer):
-    """
-    Scores URLs based on structural likelihood of being a content page.
-    Language-agnostic and extremely fast.
-    """
-
-    __slots__ = ("_weight",)
+class GenericContentURLScorer(URLScorer):
+    __slots__ = ("_weight", "_keywords", "_case_sensitive")
 
     BAD_EXTENSIONS = (
         ".jpg", ".jpeg", ".png", ".gif", ".svg",
@@ -534,21 +529,28 @@ class URLPathHeuristicScorer(URLScorer):
 
     BAD_KEYWORDS = (
         "login", "logout", "signup", "register",
-        "cart", "checkout", "search", "tag",
-        "category", "feed", "rss", "wp-admin"
+        "cart", "checkout", "search", "filter",
+        "tag", "category", "feed", "rss",
+        "admin", "wp-admin"
     )
 
-    DATE_PATTERN = re.compile(r"/20\d{2}/\d{1,2}/\d{1,2}/")
-    ID_PATTERN = re.compile(r"/\d{4,}")
+    SLUG_PATTERN = re.compile(
+        r"/([a-z0-9\u3040-\u30ff\u4e00-\u9fff_-]{3,})",
+        re.IGNORECASE
+    )
 
-    def __init__(self, weight: float = 1.0):
+    OPAQUE_ID_PATTERN = re.compile(r"/[A-Z0-9]{6,}/?$")
+
+    def __init__(self, keywords, weight=1.0, case_sensitive=False):
         super().__init__(weight=weight)
+        self._case_sensitive = case_sensitive
+        self._keywords = [k if case_sensitive else k.lower() for k in keywords]
 
     @lru_cache(maxsize=10000)
     def _calculate_score(self, url: str) -> float:
-        url = url.lower()
+        url = url if self._case_sensitive else url.lower()
 
-        # Hard reject
+        # ---------- Hard rejects ----------
         if url.endswith(self.BAD_EXTENSIONS):
             return 0.0
 
@@ -557,27 +559,32 @@ class URLPathHeuristicScorer(URLScorer):
 
         score = 0.0
 
-        # Path depth heuristic
         path = url.split("?", 1)[0]
-        depth = path.count("/") - 2  # exclude scheme + domain
+        depth = path.count("/") - 2
 
-        if 2 <= depth <= 4:
-            score += 0.4
+        # ---------- Depth heuristic ----------
+        if 2 <= depth <= 5:
+            score += 0.35
         elif depth == 1:
-            score += 0.2
+            score += 0.15
         elif depth > 6:
             score -= 0.2
 
-        # Date-based articles
-        if self.DATE_PATTERN.search(path):
-            score += 0.4
+        # ---------- Content-likeness ----------
+        if self.SLUG_PATTERN.search(path):
+            score += 0.25
 
-        # Numeric article IDs
-        if self.ID_PATTERN.search(path):
-            score += 0.3
+        if self.OPAQUE_ID_PATTERN.search(path):
+            score += 0.25
 
-        # Query penalty
+        # ---------- Keyword bonus ----------
+        if self._keywords:
+            matches = sum(1 for k in self._keywords if k in url)
+            if matches:
+                score += min(0.35, matches / len(self._keywords))
+
+        # ---------- Query penalty ----------
         if "?" in url:
-            score -= 0.2
+            score -= 0.15
 
         return max(0.0, min(score, 1.0)) * self._weight
