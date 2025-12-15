@@ -446,7 +446,7 @@ class BM25ContentFilter(RelevantContentFilter):
         self.stemmer = stemmer(language) if self.use_stemming else None
         self.tokenizer = LanguageTokenizer(self.language)
 
-    def filter_content(self, html: str, min_word_threshold: int = 10) -> List[str]:
+    def filter_content(self, html: str, min_word_threshold: int = None) -> List[str]:
         if not html or not isinstance(html, str):
             return []
 
