@@ -7,6 +7,8 @@ from rank_bm25 import BM25Okapi
 from collections import deque
 from bs4 import NavigableString, Comment
 
+from janome.tokenizer import Tokenizer as JanomeTokenizer
+
 from .utils import (
     clean_tokens,
     perform_completion_with_backoff,
@@ -378,26 +380,38 @@ class RelevantContentFilter(ABC):
             return str(tag)  # Fallback to original if anything fails
 
 
+class LanguageTokenizer:
+    """
+    Language-aware tokenizer supporting English-like languages and Japanese.
+    """
+
+    def __init__(self, language: str):
+        self.language = language.lower()
+        self.ja_tokenizer = (
+            JanomeTokenizer() if self.language == "japanese" else None
+        )
+
+    def tokenize(self, text: str) -> List[str]:
+        if not text:
+            return []
+
+        if self.language == "japanese":
+            # Extract content-bearing tokens only
+            return [
+                token.base_form
+                for token in self.ja_tokenizer.tokenize(text)
+                if token.part_of_speech.split(",")[0]
+                in {"名詞", "動詞", "形容詞"}
+                and token.base_form != "*"
+            ]
+
+        # Fallback (English, European languages)
+        return re.findall(r"\b\w+\b", text.lower())
+
 class BM25ContentFilter(RelevantContentFilter):
     """
     Content filtering using BM25 algorithm with priority tag handling.
-
-    How it works:
-    1. Extracts page metadata with fallbacks.
-    2. Extracts text chunks from the body element.
-    3. Tokenizes the corpus and query.
-    4. Applies BM25 algorithm to calculate scores for each chunk.
-    5. Filters out chunks below the threshold.
-    6. Sorts chunks by score in descending order.
-    7. Returns the top N chunks.
-
-    Attributes:
-        user_query (str): User query for filtering (optional).
-        bm25_threshold (float): BM25 threshold for filtering (default: 1.0).
-        language (str): Language for stemming (default: 'english').
-
-        Methods:
-            filter_content(self, html: str, min_word_threshold: int = None)
+    Supports English and Japanese.
     """
 
     def __init__(
@@ -407,21 +421,14 @@ class BM25ContentFilter(RelevantContentFilter):
         language: str = "english",
         use_stemming: bool = True,
     ):
-        """
-        Initializes the BM25ContentFilter class, if not provided, falls back to page metadata.
-
-        Note:
-        If no query is given and no page metadata is available, then it tries to pick up the first significant paragraph.
-
-        Args:
-            user_query (str): User query for filtering (optional).
-            bm25_threshold (float): BM25 threshold for filtering (default: 1.0).
-            language (str): Language for stemming (default: 'english').
-            use_stemming (bool): Whether to apply stemming (default: True).
-        """
         super().__init__(user_query=user_query)
+
+        self.language = language.lower()
         self.bm25_threshold = bm25_threshold
-        self.use_stemming = use_stemming
+
+        # Stemming disabled for Japanese
+        self.use_stemming = use_stemming and self.language != "japanese"
+
         self.priority_tags = {
             "h1": 5.0,
             "h2": 4.0,
@@ -433,101 +440,86 @@ class BM25ContentFilter(RelevantContentFilter):
             "blockquote": 2.0,
             "code": 2.0,
             "pre": 1.5,
-            "th": 1.5,  # Table headers
+            "th": 1.5,
         }
-        self.stemmer = stemmer(language) if use_stemming else None
+
+        self.stemmer = stemmer(language) if self.use_stemming else None
+        self.tokenizer = LanguageTokenizer(self.language)
 
     def filter_content(self, html: str, min_word_threshold: int = None) -> List[str]:
-        """
-        Implements content filtering using BM25 algorithm with priority tag handling.
-
-            Note:
-        This method implements the filtering logic for the BM25ContentFilter class.
-        It takes HTML content as input and returns a list of filtered text chunks.
-
-        Args:
-            html (str): HTML content to be filtered.
-            min_word_threshold (int): Minimum word threshold for filtering (optional).
-
-        Returns:
-            List[str]: List of filtered text chunks.
-        """
         if not html or not isinstance(html, str):
             return []
 
         soup = BeautifulSoup(html, "lxml")
 
-        # Check if body is present
+        # Ensure body exists
         if not soup.body:
-            # Wrap in body tag if missing
             soup = BeautifulSoup(f"<body>{html}</body>", "lxml")
+
         body = soup.find("body")
 
         query = self.extract_page_query(soup, body)
-
         if not query:
             return []
-            # return [self.clean_element(soup)]
 
         candidates = self.extract_text_chunks(body, min_word_threshold)
-
         if not candidates:
             return []
 
-        # Tokenize corpus
-        # tokenized_corpus = [chunk.lower().split() for _, chunk, _, _ in candidates]
-        # tokenized_query = query.lower().split()
+        # Tokenize corpus and query
+        tokenized_corpus = [
+            self.tokenizer.tokenize(chunk)
+            for _, chunk, _, _ in candidates
+        ]
+        tokenized_query = self.tokenizer.tokenize(query)
 
-        # tokenized_corpus = [[ps.stem(word) for word in chunk.lower().split()]
-        #                 for _, chunk, _, _ in candidates]
-        # tokenized_query = [ps.stem(word) for word in query.lower().split()]
-
-        if self.use_stemming:
+        # Optional stemming (non-Japanese only)
+        if self.use_stemming and self.stemmer:
             tokenized_corpus = [
-                [self.stemmer.stemWord(word) for word in chunk.lower().split()]
-                for _, chunk, _, _ in candidates
+                [self.stemmer.stemWord(token) for token in tokens]
+                for tokens in tokenized_corpus
             ]
             tokenized_query = [
-                self.stemmer.stemWord(word) for word in query.lower().split()
+                self.stemmer.stemWord(token) for token in tokenized_query
             ]
-        else:
+
+        # Clean tokens (skip for Japanese)
+        if self.language != "japanese":
             tokenized_corpus = [
-                chunk.lower().split() for _, chunk, _, _ in candidates
+                clean_tokens(tokens) for tokens in tokenized_corpus
             ]
-            tokenized_query = query.lower().split()
+            tokenized_query = clean_tokens(tokenized_query)
 
-        # tokenized_corpus = [[self.stemmer.stemWord(word) for word in tokenize_text(chunk.lower())]
-        #            for _, chunk, _, _ in candidates]
-        # tokenized_query = [self.stemmer.stemWord(word) for word in tokenize_text(query.lower())]
+        if not tokenized_query:
+            return []
 
-        # Clean from stop words and noise
-        tokenized_corpus = [clean_tokens(tokens) for tokens in tokenized_corpus]
-        tokenized_query = clean_tokens(tokenized_query)
-
+        # BM25 scoring
         bm25 = BM25Okapi(tokenized_corpus)
         scores = bm25.get_scores(tokenized_query)
 
-        # Adjust scores with tag weights
+        # Apply tag weighting
         adjusted_candidates = []
-        for score, (index, chunk, tag_type, tag) in zip(scores, candidates):
+        for score, (index, chunk, _, tag) in zip(scores, candidates):
             tag_weight = self.priority_tags.get(tag.name, 1.0)
             adjusted_score = score * tag_weight
-            adjusted_candidates.append((adjusted_score, index, chunk, tag))
+            adjusted_candidates.append(
+                (adjusted_score, index, tag)
+            )
 
-        # Filter candidates by threshold
-        selected_candidates = [
-            (index, chunk, tag)
-            for adjusted_score, index, chunk, tag in adjusted_candidates
-            if adjusted_score >= self.bm25_threshold
+        # Filter by threshold
+        selected = [
+            (index, tag)
+            for score, index, tag in adjusted_candidates
+            if score >= self.bm25_threshold
         ]
 
-        if not selected_candidates:
+        if not selected:
             return []
 
-        # Sort selected candidates by original document order
-        selected_candidates.sort(key=lambda x: x[0])
+        # Preserve document order
+        selected.sort(key=lambda x: x[0])
 
-        return [self.clean_element(tag) for _, _, tag in selected_candidates]
+        return [self.clean_element(tag) for _, tag in selected]
 
 
 class PruningContentFilter(RelevantContentFilter):
