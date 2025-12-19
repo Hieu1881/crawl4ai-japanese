@@ -503,23 +503,24 @@ class BM25ContentFilter(RelevantContentFilter):
             tag_weight = self.priority_tags.get(tag.name, 1.0)
             adjusted_score = score * tag_weight
             adjusted_candidates.append(
-                (adjusted_score, index, tag)
+                (adjusted_score, tag)
             )
+
+        # Sort by score in descending order
+        adjusted_candidates.sort(key=lambda x: x[0], reverse=True)
+
+        # Print the tags of the top 3 candidates
+        for i, (_, tag) in enumerate(adjusted_candidates[:3], 1):
+            print(f"Top {i} Tag: {tag}")
 
         # Filter by threshold
         selected = [
-            (index, tag)
-            for score, index, tag in adjusted_candidates
+            tag
+            for score, tag in adjusted_candidates
             if score >= self.bm25_threshold
         ]
 
-        if not selected:
-            return []
-
-        # Preserve document order
-        selected.sort(key=lambda x: x[0])
-
-        return [self.clean_element(tag) for _, tag in selected]
+        return [self.clean_element(tag) for tag in selected]
 
 
 class PruningContentFilter(RelevantContentFilter):
