@@ -229,13 +229,20 @@ class DefaultMarkdownGenerator(MarkdownGenerationStrategy):
             # Generate fit markdown if content filter is provided
             fit_markdown: Optional[str] = ""
             filtered_html: Optional[str] = ""
+            # Filter out headers, footers, and excluded tags
             if content_filter or self.content_filter:
                 try:
                     content_filter = content_filter or self.content_filter
                     filtered_html = content_filter.filter_content(input_html)
+
+                    # Remove headers, footers, and excluded tags
+                    excluded_tags = getattr(content_filter, 'excluded_tags', set())
                     filtered_html = "\n".join(
-                        "<div>{}</div>".format(s) for s in filtered_html
+                        "<div>{}</div>".format(s)
+                        for s in filtered_html
+                        if not any(tag in excluded_tags for tag in s)
                     )
+
                     fit_markdown = h.handle(filtered_html)
                 except Exception as e:
                     fit_markdown = f"Error generating fit markdown: {str(e)}"
