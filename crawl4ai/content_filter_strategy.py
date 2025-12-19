@@ -501,28 +501,27 @@ class BM25ContentFilter(RelevantContentFilter):
 
         # Apply tag weighting
         adjusted_candidates = []
-        for score, (index, chunk, _, tag) in zip(scores, candidates):
+        for score, (index, chunk, tag_type, tag) in zip(scores, candidates):
             tag_weight = self.priority_tags.get(tag.name, 1.0)
             adjusted_score = score * tag_weight
-            adjusted_candidates.append(
-                (adjusted_score, tag)
-            )
+            adjusted_candidates.append((adjusted_score, index, chunk, tag))
 
         # Sort by score in descending order
         adjusted_candidates.sort(key=lambda x: x[0], reverse=True)
 
         # Print the tags of the top 3 candidates
-        for i, (_, tag) in enumerate(adjusted_candidates[:50], 1):
-            print(f"Top {i} Tag: {tag} Score: {adjusted_candidates[i-1][0]}")
+        for i, (score, index, chunk, tag) in enumerate(adjusted_candidates[:50], 1):
+            print(f"Top {i} Chunk: {chunk} Score: {score}")
 
         # Filter by threshold
         selected = [
-            tag
-            for score, tag in adjusted_candidates
+            (index,tag)
+            for score, index, chunk, tag in adjusted_candidates
             if score >= self.bm25_threshold
         ]
+        selected.sort(key=lambda x: x[0])  # Restore original order
 
-        return [self.clean_element(tag) for tag in selected]
+        return [self.clean_element(tag) for index,tag in selected]
 
 
 class PruningContentFilter(RelevantContentFilter):
