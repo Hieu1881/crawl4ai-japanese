@@ -792,7 +792,7 @@ class LLMContentFilter(RelevantContentFilter):
     """
     _UNWANTED_PROPS = {
         'provider' : 'Instead, use llm_config=LLMConfig(provider="...")',
-        'api_token' : 'Instead, use llm_config=LlMConfig(api_token="...")',
+        'api_token' : 'Instead, use llm_config=LLMConfig(api_token="...")',
         'base_url' : 'Instead, use llm_config=LLMConfig(base_url="...")',
         'api_base' : 'Instead, use llm_config=LLMConfig(base_url="...")',
     }
@@ -1185,3 +1185,33 @@ class CustomBM25ContentFilter(RelevantContentFilter):
         selected.sort(key=lambda x: x[1])
 
         return [(self.clean_element(tag), score) for score, _, tag in selected]
+
+
+class CustomRelevantContentFilter(RelevantContentFilter):
+    """
+    Custom implementation of RelevantContentFilter to return top N chunks with scores.
+    """
+
+    def filter_content(self, html: str, top_n: int = 5) -> List[Tuple[str, float]]:
+        """
+        Filters the content and returns the top N chunks with their scores.
+
+        Args:
+            html (str): The HTML content to filter.
+            top_n (int): The number of top chunks to return based on scores.
+
+        Returns:
+            List[Tuple[str, float]]: A list of tuples containing the chunk text and its score.
+        """
+        # Extract text chunks from the HTML
+        soup = BeautifulSoup(html, "html.parser")
+        chunks = self.extract_text_chunks(soup.body)
+
+        # Assign scores to each chunk (example scoring logic)
+        scored_chunks = [(chunk[1], len(chunk[1].split()) / 100.0) for chunk in chunks]
+
+        # Sort chunks by score in descending order
+        scored_chunks.sort(key=lambda x: x[1], reverse=True)
+
+        # Return the top N chunks with their scores
+        return scored_chunks[:top_n]
