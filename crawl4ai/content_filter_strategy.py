@@ -200,7 +200,7 @@ class RelevantContentFilter(ABC):
             if chunk_words:
                 chunk_text = " ".join(chunk_words)
                 if min_word_threshold is None or len(chunk_words) >= min_word_threshold:
-                    chunks.append((i, chunk_text))
+                    chunks.append((i, chunk_text,"body",body))
 
         return chunks
    
