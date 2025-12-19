@@ -207,11 +207,11 @@ class RelevantContentFilter(ABC):
             "time",
             "tt",
             "var",
+            "ul", "ol", "div", "section"
         }
 
         # Tags that typically contain meaningful headers
         HEADER_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "header"}
-        GROUP_BLOCK_TAGS = {"ul", "ol", "div", "section"}
 
         chunks = []
         current_text = []
@@ -219,8 +219,7 @@ class RelevantContentFilter(ABC):
 
         def should_break_chunk(tag: Tag) -> bool:
             """Determine if a tag should cause a break in the current text chunk"""
-            if tag.name in GROUP_BLOCK_TAGS:
-                return False
+
             return tag.name not in INLINE_TAGS and not (
                 tag.name == "p" and len(current_text) == 0
             )
