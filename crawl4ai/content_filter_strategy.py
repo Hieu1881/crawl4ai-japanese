@@ -511,7 +511,8 @@ class BM25ContentFilter(RelevantContentFilter):
 
         # Print the tags of the top 3 candidates
         for i, (score, index, chunk, tag) in enumerate(adjusted_candidates[:50], 1):
-            print(f"Top {i} Tag: {tag} Score: {score}")
+            if score >= self.bm25_threshold:
+                print(f"Top {i} Tag: {tag} Score: {score}")
 
         # Filter by threshold
         selected = [
