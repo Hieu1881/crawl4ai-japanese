@@ -510,8 +510,8 @@ class BM25ContentFilter(RelevantContentFilter):
         adjusted_candidates.sort(key=lambda x: x[0], reverse=True)
 
         # Print the tags of the top 3 candidates
-        for i, (_, tag) in enumerate(adjusted_candidates[:3], 1):
-            print(f"Top {i} Tag: {tag}")
+        for i, (_, tag) in enumerate(adjusted_candidates[:15], 1):
+            print(f"Top {i} Tag: {tag} Score: {adjusted_candidates[i-1][0]}")
 
         # Filter by threshold
         selected = [
