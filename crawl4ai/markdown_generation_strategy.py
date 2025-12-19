@@ -240,7 +240,7 @@ class DefaultMarkdownGenerator(MarkdownGenerationStrategy):
                     filtered_html = "\n".join(
                         "<div>{}</div>".format(s)
                         for s in filtered_html
-                        if not any(tag in excluded_tags for tag in s)
+    
                     )
 
                     fit_markdown = h.handle(filtered_html)
