@@ -255,7 +255,7 @@ class RelevantContentFilter(ABC):
         }
 
         # Tags that typically contain meaningful headers
-        HEADER_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "header"}
+        HEADER_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
 
         chunks = []
         current_text = []
@@ -271,6 +271,10 @@ class RelevantContentFilter(ABC):
         # Use deque for efficient push/pop operations
         stack = deque([(body, False)])
 
+        # Ensure excluded_tags is defined
+        excluded_tags = getattr(self, 'excluded_tags', set())
+
+        # Modify the stack processing to skip excluded tags
         while stack:
             element, visited = stack.pop()
 
@@ -290,6 +294,10 @@ class RelevantContentFilter(ABC):
             if isinstance(element, NavigableString):
                 if str(element).strip():
                     current_text.append(str(element).strip())
+                continue
+
+            # Skip processing if the tag is in excluded_tags
+            if isinstance(element, Tag) and element.name in excluded_tags:
                 continue
 
             # Pre-allocate children to avoid multiple list operations
