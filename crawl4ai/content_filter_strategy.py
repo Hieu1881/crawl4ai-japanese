@@ -1113,6 +1113,7 @@ class CustomBM25ContentFilter(RelevantContentFilter):
 
         self.stemmer = stemmer(language) if self.use_stemming else None
         self.tokenizer = LanguageTokenizer(self.language)
+        self.top_n = top_n
 
     def filter_content(self, html: str, min_word_threshold: int = None) -> List[Tuple[str, float]]:
         if not html or not isinstance(html, str):
