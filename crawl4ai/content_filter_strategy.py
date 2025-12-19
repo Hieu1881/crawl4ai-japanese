@@ -297,7 +297,7 @@ class RelevantContentFilter(ABC):
                 continue
 
             # Skip processing if the tag is in excluded_tags
-            if isinstance(element, Tag) and element.name in excluded_tags:
+            if isinstance(element, Tag) and self.is_excluded(element):
                 continue
 
             # Pre-allocate children to avoid multiple list operations
