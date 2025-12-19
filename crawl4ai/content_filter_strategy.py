@@ -161,162 +161,162 @@ class RelevantContentFilter(ABC):
 
         return " ".join(filter(None, query_parts))
 
-    def extract_text_chunks(
-            self, body: Tag, min_word_threshold: int = None
-        ) -> List[Tuple[int, str]]:
-        """
-        Extracts text from a BeautifulSoup body element and splits it into 5 roughly equal chunks.
-        Returns a list of tuples (chunk_index, text).
-
-        Args:
-            body: BeautifulSoup Tag object representing the body element
-            min_word_threshold: optional minimum number of words per chunk
-
-        Returns:
-            List of (chunk_index, text) tuples
-        """
-        # Flatten all text in the body
-        texts = []
-        for element in body.descendants:
-            if isinstance(element, NavigableString):
-                t = element.strip()
-                if t:
-                    texts.append(t)
-        full_text = " ".join(texts)
-
-        # Split text into 5 equal chunks
-        num_chunks = 5
-        words = full_text.split()
-        total_words = len(words)
-        if total_words == 0:
-            return []
-
-        chunk_size = ceil(total_words / num_chunks)
-        chunks = []
-        for i in range(num_chunks):
-            start = i * chunk_size
-            end = min(start + chunk_size, total_words)
-            chunk_words = words[start:end]
-            if chunk_words:
-                chunk_text = " ".join(chunk_words)
-                if min_word_threshold is None or len(chunk_words) >= min_word_threshold:
-                    chunks.append((i, chunk_text,"body",body))
-
-        return chunks
-   
     # def extract_text_chunks(
-    #     self, body: Tag, min_word_threshold: int = None
-    # ) -> List[Tuple[str, str]]:
+    #         self, body: Tag, min_word_threshold: int = None
+    #     ) -> List[Tuple[int, str]]:
     #     """
-    #     Extracts text chunks from a BeautifulSoup body element while preserving order.
-    #     Returns list of tuples (text, tag_name) for classification.
+    #     Extracts text from a BeautifulSoup body element and splits it into 5 roughly equal chunks.
+    #     Returns a list of tuples (chunk_index, text).
 
     #     Args:
     #         body: BeautifulSoup Tag object representing the body element
+    #         min_word_threshold: optional minimum number of words per chunk
 
     #     Returns:
-    #         List of (text, tag_name) tuples
+    #         List of (chunk_index, text) tuples
     #     """
-    #     # Tags to ignore - inline elements that shouldn't break text flow
-    #     INLINE_TAGS = {
-    #         "a",
-    #         "abbr",
-    #         "acronym",
-    #         "b",
-    #         "bdo",
-    #         "big",
-    #         "br",
-    #         "button",
-    #         "cite",
-    #         "code",
-    #         "dfn",
-    #         "em",
-    #         "i",
-    #         "img",
-    #         "input",
-    #         "kbd",
-    #         "label",
-    #         "map",
-    #         "object",
-    #         "q",
-    #         "samp",
-    #         "script",
-    #         "select",
-    #         "small",
-    #         "span",
-    #         "strong",
-    #         "sub",
-    #         "sup",
-    #         "textarea",
-    #         "time",
-    #         "tt",
-    #         "var",
-    #         "ul", "ol", "div", "section"
-    #     }
-
-    #     # Tags that typically contain meaningful headers
-    #     HEADER_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "header"}
-
-    #     chunks = []
-    #     current_text = []
-    #     chunk_index = 0
-
-    #     def should_break_chunk(tag: Tag) -> bool:
-    #         """Determine if a tag should cause a break in the current text chunk"""
-
-    #         return tag.name not in INLINE_TAGS and not (
-    #             tag.name == "p" and len(current_text) == 0
-    #         )
-
-    #     # Use deque for efficient push/pop operations
-    #     stack = deque([(body, False)])
-
-    #     while stack:
-    #         element, visited = stack.pop()
-
-    #         if visited:
-    #             # End of block element - flush accumulated text
-    #             if current_text and should_break_chunk(element):
-    #                 text = " ".join("".join(current_text).split())
-    #                 if text:
-    #                     tag_type = (
-    #                         "header" if element.name in HEADER_TAGS else "content"
-    #                     )
-    #                     chunks.append((chunk_index, text, tag_type, element))
-    #                     chunk_index += 1
-    #                 current_text = []
-    #             continue
-
+    #     # Flatten all text in the body
+    #     texts = []
+    #     for element in body.descendants:
     #         if isinstance(element, NavigableString):
-    #             if str(element).strip():
-    #                 current_text.append(str(element).strip())
-    #             continue
+    #             t = element.strip()
+    #             if t:
+    #                 texts.append(t)
+    #     full_text = " ".join(texts)
 
-    #         # Pre-allocate children to avoid multiple list operations
-    #         children = list(element.children)
-    #         if not children:
-    #             continue
+    #     # Split text into 5 equal chunks
+    #     num_chunks = 5
+    #     words = full_text.split()
+    #     total_words = len(words)
+    #     if total_words == 0:
+    #         return []
 
-    #         # Mark block for revisit after processing children
-    #         stack.append((element, True))
-
-    #         # Add children in reverse order for correct processing
-    #         for child in reversed(children):
-    #             if isinstance(child, (Tag, NavigableString)):
-    #                 stack.append((child, False))
-
-    #     # Handle any remaining text
-    #     if current_text:
-    #         text = " ".join("".join(current_text).split())
-    #         if text:
-    #             chunks.append((chunk_index, text, "content", body))
-
-    #     if min_word_threshold:
-    #         chunks = [
-    #             chunk for chunk in chunks if len(chunk[1].split()) >= min_word_threshold
-    #         ]
+    #     chunk_size = ceil(total_words / num_chunks)
+    #     chunks = []
+    #     for i in range(num_chunks):
+    #         start = i * chunk_size
+    #         end = min(start + chunk_size, total_words)
+    #         chunk_words = words[start:end]
+    #         if chunk_words:
+    #             chunk_text = " ".join(chunk_words)
+    #             if min_word_threshold is None or len(chunk_words) >= min_word_threshold:
+    #                 chunks.append((i, chunk_text,"body",body))
 
     #     return chunks
+   
+    def extract_text_chunks(
+        self, body: Tag, min_word_threshold: int = None
+    ) -> List[Tuple[str, str]]:
+        """
+        Extracts text chunks from a BeautifulSoup body element while preserving order.
+        Returns list of tuples (text, tag_name) for classification.
+
+        Args:
+            body: BeautifulSoup Tag object representing the body element
+
+        Returns:
+            List of (text, tag_name) tuples
+        """
+        # Tags to ignore - inline elements that shouldn't break text flow
+        INLINE_TAGS = {
+            "a",
+            "abbr",
+            "acronym",
+            "b",
+            "bdo",
+            "big",
+            "br",
+            "button",
+            "cite",
+            "code",
+            "dfn",
+            "em",
+            "i",
+            "img",
+            "input",
+            "kbd",
+            "label",
+            "map",
+            "object",
+            "q",
+            "samp",
+            "script",
+            "select",
+            "small",
+            "span",
+            "strong",
+            "sub",
+            "sup",
+            "textarea",
+            "time",
+            "tt",
+            "var",
+            "ul", "ol", "div", "section"
+        }
+
+        # Tags that typically contain meaningful headers
+        HEADER_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "header"}
+
+        chunks = []
+        current_text = []
+        chunk_index = 0
+
+        def should_break_chunk(tag: Tag) -> bool:
+            """Determine if a tag should cause a break in the current text chunk"""
+
+            return tag.name not in INLINE_TAGS and not (
+                tag.name == "p" and len(current_text) == 0
+            )
+
+        # Use deque for efficient push/pop operations
+        stack = deque([(body, False)])
+
+        while stack:
+            element, visited = stack.pop()
+
+            if visited:
+                # End of block element - flush accumulated text
+                if current_text and should_break_chunk(element):
+                    text = " ".join("".join(current_text).split())
+                    if text:
+                        tag_type = (
+                            "header" if element.name in HEADER_TAGS else "content"
+                        )
+                        chunks.append((chunk_index, text, tag_type, element))
+                        chunk_index += 1
+                    current_text = []
+                continue
+
+            if isinstance(element, NavigableString):
+                if str(element).strip():
+                    current_text.append(str(element).strip())
+                continue
+
+            # Pre-allocate children to avoid multiple list operations
+            children = list(element.children)
+            if not children:
+                continue
+
+            # Mark block for revisit after processing children
+            stack.append((element, True))
+
+            # Add children in reverse order for correct processing
+            for child in reversed(children):
+                if isinstance(child, (Tag, NavigableString)):
+                    stack.append((child, False))
+
+        # Handle any remaining text
+        if current_text:
+            text = " ".join("".join(current_text).split())
+            if text:
+                chunks.append((chunk_index, text, "content", body))
+
+        if min_word_threshold:
+            chunks = [
+                chunk for chunk in chunks if len(chunk[1].split()) >= min_word_threshold
+            ]
+
+        return chunks
 
     def _deprecated_extract_text_chunks(
         self, soup: BeautifulSoup
