@@ -234,7 +234,8 @@ class DefaultMarkdownGenerator(MarkdownGenerationStrategy):
                     content_filter = content_filter or self.content_filter
                     filtered_html = content_filter.filter_content(input_html)
                     filtered_html = "\n".join(
-                        "<div>{}</div>".format(s) for s in filtered_html
+                        f"-----Score={score}---\n<div>{html}</div>"
+                        for html, score in filtered_html
                     )
                     fit_markdown = h.handle(filtered_html)
                 except Exception as e:
