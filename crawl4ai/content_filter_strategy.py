@@ -277,6 +277,9 @@ class RelevantContentFilter(ABC):
         # Modify the stack processing to skip excluded tags
         while stack:
             element, visited = stack.pop()
+            # Skip processing if the tag is in excluded_tags
+            if isinstance(element, Tag) and self.is_excluded(element):
+                continue
 
             if visited:
                 # End of block element - flush accumulated text
@@ -296,9 +299,7 @@ class RelevantContentFilter(ABC):
                     current_text.append(str(element).strip())
                 continue
 
-            # Skip processing if the tag is in excluded_tags
-            if isinstance(element, Tag) and self.is_excluded(element):
-                continue
+            
 
             # Pre-allocate children to avoid multiple list operations
             children = list(element.children)
