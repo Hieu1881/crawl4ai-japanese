@@ -251,7 +251,8 @@ class RelevantContentFilter(ABC):
             "time",
             "tt",
             "var",
-            "ul", "ol", "div", "section"
+            "ul", "ol", "div", "section",
+            "figure", "picture"
         }
 
         # Tags that typically contain meaningful headers
