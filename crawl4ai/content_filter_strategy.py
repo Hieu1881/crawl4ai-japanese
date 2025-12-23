@@ -574,7 +574,7 @@ class BM25ContentFilter(RelevantContentFilter):
             if score >= self.bm25_threshold
         ]
         selected.sort(key=lambda x: x[0])  # Restore original order
-
+        print(f"Cleaned element: {[self.clean_element(tag) for index,tag in selected]}")
         return [self.clean_element(tag) for index,tag in selected]
 
 
